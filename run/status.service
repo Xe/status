@@ -1,0 +1,9 @@
+[Unit]
+Description=Status bar daemon
+
+[Service]
+ExecStartPre=-/bin/rm /home/xena/.local/share/within/status/status.sock
+ExecStart=/home/xena/go/bin/status -d
+
+[Install]
+WantedBy=default.target
