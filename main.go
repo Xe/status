@@ -69,6 +69,8 @@ func main() {
 			Handler: mux,
 		}
 
+		os.Remove("/home/xena/.local/share/within/status/status.sock")
+
 		l, err := net.Listen("unix", "/home/xena/.local/share/within/status/status.sock")
 		if err != nil {
 			log.Fatal(err)
