@@ -223,7 +223,7 @@ func main() {
 						updateCPUUse(),
 						updateMemUse(),
 						updatePower(),
-						time.Now().Local().Format("Mon 02 15:04:05"),
+						time.Now().Local().Format("Mon 02 15:04"),
 					}...,
 				)
 
@@ -251,6 +251,9 @@ func main() {
 					}
 				}
 
+				// sleep until beginning of next second
+				var now = time.Now()
+				time.Sleep(now.Truncate(time.Second).Add(time.Second).Sub(now))
 			}
 		}()
 
