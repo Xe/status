@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
@@ -70,30 +69,6 @@ func fixed(pre string, rate int) string {
 	return pre + formated + suf
 }
 
-// updateNetUse reads current transfer rates of certain network interfaces
-func updateNetUse() string {
-	file, err := os.Open("/proc/net/dev")
-	if err != nil {
-		return "down ERR up ERR"
-	}
-	defer file.Close()
-
-	var void = 0 // target for unused values
-	var dev, rx, tx, rxNow, txNow = "", 0, 0, 0, 0
-	var scanner = bufio.NewScanner(file)
-	for scanner.Scan() {
-		_, err = fmt.Sscanf(scanner.Text(), "%s %d %d %d %d %d %d %d %d %d",
-			&dev, &rx, &void, &void, &void, &void, &void, &void, &void, &tx)
-		if _, ok := netDevs[dev]; ok {
-			rxNow += rx
-			txNow += tx
-		}
-	}
-
-	defer func() { rxOld, txOld = rxNow, txNow }()
-	return fmt.Sprintf("%s %s", fixed("down", rxNow-rxOld), fixed("up", txNow-txOld))
-}
-
 // colored surrounds the percentage with color escapes if it is >= 70
 func colored(icon string, percentage int) string {
 	if percentage >= 100 {
@@ -102,59 +77,6 @@ func colored(icon string, percentage int) string {
 		return fmt.Sprintf("%s %3d", icon, percentage)
 	}
 	return fmt.Sprintf("%s%3d", icon, percentage)
-}
-
-// updatePower reads the current battery and power plug status
-func updatePower() string {
-	const powerSupply = "/sys/class/power_supply/"
-	var enFull, enNow, enPerc int = 0, 0, 0
-	var plugged, err = ioutil.ReadFile(powerSupply + "AC/online")
-	if err != nil {
-		return "bat ERR"
-	}
-	batts, err := ioutil.ReadDir(powerSupply)
-	if err != nil {
-		return "bat ERR"
-	}
-
-	readval := func(name, field string) int {
-		var path = powerSupply + name + "/"
-		var file []byte
-		if tmp, err := ioutil.ReadFile(path + "energy_" + field); err == nil {
-			file = tmp
-		} else if tmp, err := ioutil.ReadFile(path + "charge_" + field); err == nil {
-			file = tmp
-		} else {
-			return 0
-		}
-
-		if ret, err := strconv.Atoi(strings.TrimSpace(string(file))); err == nil {
-			return ret
-		}
-		return 0
-	}
-
-	for _, batt := range batts {
-		name := batt.Name()
-		if !strings.HasPrefix(name, "BAT ") {
-			continue
-		}
-
-		enFull += readval(name, "full")
-		enNow += readval(name, "now")
-	}
-
-	if enFull == 0 { // Battery found but no readable full file.
-		return "bat ERR"
-	}
-
-	enPerc = enNow * 100 / enFull
-	var icon = "bat"
-	if string(plugged) == "1\n" {
-		icon = "BAT"
-	}
-
-	return fmt.Sprintf("%s %3d", icon, enPerc)
 }
 
 // updateCPUUse reads the last minute sysload and scales it to the core count
@@ -219,16 +141,16 @@ func main() {
 
 				status = append(status,
 					[]string{
-						updateNetUse(),
 						updateCPUUse(),
 						updateMemUse(),
-						updatePower(),
 						time.Now().Local().Format("Mon 02 15:04"),
 					}...,
 				)
 
+				hostname, _ := os.Hostname()
+
 				mymessage := strings.Join(status, " | ")
-				exec.Command("xsetroot", "-name", mymessage).Run()
+				exec.Command("xsetroot", "-name", hostname+" | "+mymessage).Run()
 
 				files, err := ioutil.ReadDir("/home/xena/.local/share/within/status/fifos")
 				if err != nil {
